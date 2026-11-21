@@ -1,0 +1,28 @@
+# Draws every image on each pull request, so a broken profile.toml or build.py
+# shows up before it reaches the profile.
+name: Check images
+
+on:
+  pull_request:
+    paths:
+      - scripts/**
+      - .github/workflows/check.yml
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - uses: actions/cache@v6
+        with:
+          path: .cache/fonts
+          key: fonts-${{ hashFiles('scripts/build.py') }}
+      - run: pip install -r scripts/requirements.txt
+      - run: python scripts/check.py
