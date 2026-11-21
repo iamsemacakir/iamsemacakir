@@ -5,6 +5,7 @@ on:
   push:
     branches: [main]
     paths:
+      - .github/workflows/images.yml
       - scripts/profile.toml
       - scripts/build.py
       - scripts/requirements.txt
@@ -42,4 +43,9 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "Redraw profile images"
-          git push
+          # Another merge may have landed while the images were drawn.
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            sleep 5
+          done
+          exit 1
