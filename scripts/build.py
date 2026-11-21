@@ -19,7 +19,9 @@ import itertools
 import json
 import math
 import os
+import time
 import tomllib
+import urllib.error
 import urllib.parse
 import urllib.request
 from pathlib import Path
@@ -92,14 +94,30 @@ def secs(value: float) -> str:
 
 # Fonts ---------------------------------------------------------------------
 
+def download(request: str | urllib.request.Request, timeout: int) -> bytes:
+    """Reads a URL, trying twice more when the network or the server has a hiccup."""
+    where = getattr(request, "full_url", request)
+    for attempt in range(3):
+        try:
+            with urllib.request.urlopen(request, timeout=timeout) as response:
+                return response.read()
+        except urllib.error.HTTPError as error:
+            if error.code < 500 or attempt == 2:
+                raise SystemExit(f"{where} answered {error.code} {error.reason}")
+        except (urllib.error.URLError, TimeoutError) as error:
+            if attempt == 2:
+                raise SystemExit(f"Could not reach {where}: {error}")
+        time.sleep(5 * (attempt + 1))
+    raise AssertionError("unreachable")
+
+
 def font_file(key: str) -> Path:
     source, axes, _ = FONTS[key]
     CACHE.mkdir(parents=True, exist_ok=True)
     raw = CACHE / Path(source).name
     if not raw.exists():
         url = GOOGLE_FONTS + urllib.parse.quote(source, safe="/,")
-        with urllib.request.urlopen(url, timeout=120) as response:
-            raw.write_bytes(response.read())
+        raw.write_bytes(download(url, 120))
     if not axes:
         return raw
     static = CACHE / f"{key}.ttf"
@@ -666,8 +684,7 @@ def fetch_activity(settings: dict, token: str) -> dict:
     body = json.dumps({"query": QUERY, "variables": {"login": settings["user"]}}).encode()
     request = urllib.request.Request("https://api.github.com/graphql", data=body, headers={
         "Authorization": f"bearer {token}", "Content-Type": "application/json", "User-Agent": "profile-images"})
-    with urllib.request.urlopen(request, timeout=60) as response:
-        payload = json.load(response)
+    payload = json.loads(download(request, 60))
     if payload.get("errors"):
         raise SystemExit("GitHub API: " + "; ".join(e["message"] for e in payload["errors"]))
     user = payload["data"]["user"]
