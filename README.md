@@ -43,8 +43,8 @@ Live demos: [AutoFlow](https://iamsemacakir.github.io/autoflow/), [LangForU](htt
 ### Tools I use
 
 <picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=cs,java,cpp,ts,js,py,html,css,sass,dotnet,spring,react,nextjs,vue,tailwind,bootstrap,postgres,mysql,mongodb,docker,git,githubactions,linux,postman,selenium,figma,ps&perline=9&theme=dark">
-  <img src="https://skillicons.dev/icons?i=cs,java,cpp,ts,js,py,html,css,sass,dotnet,spring,react,nextjs,vue,tailwind,bootstrap,postgres,mysql,mongodb,docker,git,githubactions,linux,postman,selenium,figma,ps&perline=9&theme=light" alt="C#, Java, C++, TypeScript, JavaScript, Python, HTML, CSS, Sass, .NET, Spring, React, Next.js, Vue, Tailwind CSS, Bootstrap, PostgreSQL, MySQL, MongoDB, Docker, Git, GitHub Actions, Linux, Postman, Selenium, Figma, Photoshop">
+  <source media="(prefers-color-scheme: dark)" srcset="https://skillicons.dev/icons?i=cs%2Cjava%2Ccpp%2Cts%2Cjs%2Cpy%2Chtml%2Ccss%2Csass%2Cdotnet%2Cspring%2Creact%2Cnextjs%2Cvue%2Ctailwind%2Cbootstrap%2Cpostgres%2Cmysql%2Cmongodb%2Cdocker%2Cgit%2Cgithubactions%2Clinux%2Cpostman%2Cselenium%2Cfigma%2Cps&perline=9&theme=dark">
+  <img src="https://skillicons.dev/icons?i=cs%2Cjava%2Ccpp%2Cts%2Cjs%2Cpy%2Chtml%2Ccss%2Csass%2Cdotnet%2Cspring%2Creact%2Cnextjs%2Cvue%2Ctailwind%2Cbootstrap%2Cpostgres%2Cmysql%2Cmongodb%2Cdocker%2Cgit%2Cgithubactions%2Clinux%2Cpostman%2Cselenium%2Cfigma%2Cps&perline=9&theme=light" alt="C#, Java, C++, TypeScript, JavaScript, Python, HTML, CSS, Sass, .NET, Spring, React, Next.js, Vue, Tailwind CSS, Bootstrap, PostgreSQL, MySQL, MongoDB, Docker, Git, GitHub Actions, Linux, Postman, Selenium, Figma, Photoshop">
 </picture>
 
 ### My year on GitHub
