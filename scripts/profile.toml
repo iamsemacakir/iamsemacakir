@@ -1,0 +1,67 @@
+# The words in the profile images.
+# Change a line, commit, and the "Profile images" workflow redraws
+# assets/*.svg about a minute later. README.md itself is edited by hand.
+
+[person]
+greeting = "Hi, I'm"
+name = "Sema Çakır"
+tagline = "Full-stack developer with a soft spot for clean flows and useful details."
+note = ["Thoughtful code", "for real people."]
+now_command = "cat now.txt"
+now = "building AutoFlow in .NET 10 & React"
+
+# Buttons under the header. Icons: globe, briefcase, envelope, camera.
+[[links]]
+file = "portfolio"
+label = "Portfolio"
+icon = "globe"
+
+[[links]]
+file = "linkedin"
+label = "LinkedIn"
+icon = "briefcase"
+
+[[links]]
+file = "email"
+label = "Email"
+icon = "envelope"
+
+[[links]]
+file = "instagram"
+label = "Instagram"
+icon = "camera"
+
+# Project cards. Pictures: schedule, service-map, flashcard, route.
+[[projects]]
+file = "autoflow"
+title = "AutoFlow"
+about = "Management system for independent car workshops: bays on a 15-minute grid, work orders, invoices with PDFs."
+tags = ["C#", ".NET 10", "PostgreSQL", "React"]
+picture = "schedule"
+
+[[projects]]
+file = "hydra"
+title = "Hydra"
+about = "One live map of a distributed system. My part was the interface, from the design comps to every Next.js page."
+tags = ["Next.js", "TypeScript", "UI/UX"]
+picture = "service-map"
+
+[[projects]]
+file = "langforu"
+title = "LangForU"
+about = "Language courses for Bulgarian speakers, with Sevi, an AI assistant that gives feedback on essays."
+tags = ["Java", "Spring Boot", "PostgreSQL"]
+picture = "flashcard"
+flashcard = ["Здравей!", "Hello!"]
+
+[[projects]]
+file = "travelis"
+title = "Travelis"
+about = "Stays, taxis, car rentals and attractions in one booking system, with AI recommendations."
+tags = ["C#", "ASP.NET Core", "MS SQL"]
+picture = "route"
+
+# The yearly activity card, redrawn every night from the GitHub API.
+[activity]
+user = "iamsemacakir"
+hide_languages = []

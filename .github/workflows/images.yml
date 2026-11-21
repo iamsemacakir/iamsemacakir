@@ -1,0 +1,40 @@
+# Redraws assets/*.svg whenever scripts/profile.toml or the drawing script changes.
+name: Profile images
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - scripts/profile.toml
+      - scripts/build.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: profile-images
+  cancel-in-progress: true
+
+jobs:
+  draw:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install -r scripts/requirements.txt
+      - run: python scripts/build.py assets
+      - name: Commit the new images
+        run: |
+          git add assets
+          if git diff --cached --quiet; then
+            echo "The images are already up to date."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Redraw profile images"
+          git push
