@@ -15,6 +15,7 @@ import argparse
 import base64
 import datetime as dt
 import io
+import itertools
 import json
 import math
 import os
@@ -52,7 +53,7 @@ THEMES = {
         "ink": "#1E40AF", "accent": "#2563EB", "text": "#1F2328", "muted": "#59636E", "faint": "#8C959F",
         "sticky": "#FDE68A", "sticky_shade": "#F4D35E", "sticky_text": "#433405",
         "red": "#DC2626", "green": "#16A34A", "amber": "#D97706", "pink": "#DB2777",
-        "chip": "#EDF2FA", "shadow": 0.08, "note_shadow": 0.20,
+        "chip": "#EDF2FA", "shadow": 0.08, "note_shadow": 0.20, "ink_soft": "#6179C6", "pencil_line": "#1F2328",
     },
     "dark": {
         "page": "#151C28", "edge": "#2B3647", "grid": "#1F2938", "margin": "#5C2D37",
@@ -60,7 +61,7 @@ THEMES = {
         "ink": "#9DC1FF", "accent": "#60A5FA", "text": "#E6EDF3", "muted": "#A7B1C0", "faint": "#7D889B",
         "sticky": "#F5D776", "sticky_shade": "#E0BC4E", "sticky_text": "#3A2D05",
         "red": "#F87171", "green": "#4ADE80", "amber": "#FBBF24", "pink": "#F472B6",
-        "chip": "#1E2839", "shadow": 0.0, "note_shadow": 0.55,
+        "chip": "#1E2839", "shadow": 0.0, "note_shadow": 0.55, "ink_soft": "#7894C4", "pencil_line": "#0B0F17",
     },
 }
 HIGHLIGHTERS = ["#93C5FD", "#FCD34D", "#F9A8D4", "#86EFAC", "#C4B5FD", "#FDBA74"]
@@ -179,6 +180,18 @@ def wrap(font: Font, text: str, size: float, max_width: float) -> list[str]:
     return lines + [line] if line else lines
 
 
+def balanced(font: Font, text: str, size: float, max_width: float) -> list[str]:
+    """As few lines as wrap() needs, with the words shared out so no line is left nearly empty."""
+    words, count = text.split(), len(wrap(font, text, size, max_width))
+    best = None
+    for breaks in itertools.combinations(range(1, len(words)), count - 1):
+        lines = [" ".join(words[a:b]) for a, b in zip((0,) + breaks, breaks + (len(words),))]
+        widest = max(font.width(line, size) for line in lines)
+        if widest <= max_width and (best is None or widest < best[0]):
+            best = (widest, lines)
+    return best[1] if best else wrap(font, text, size, max_width)
+
+
 # Canvas --------------------------------------------------------------------
 
 class Canvas:
@@ -214,7 +227,7 @@ class Canvas:
                 f'<defs>{"".join(self.defs)}</defs>{"".join(self.body)}</svg>\n')
 
 
-def page(c: Canvas, t: dict, x: float, y: float, w: float, h: float, grid: bool = True) -> None:
+def page(c: Canvas, t: dict, x: float, y: float, w: float, h: float, grid: bool = True, step: int = 24) -> None:
     """A sheet of paper: squared like a maths notebook, or plain for index cards."""
     if t["shadow"]:
         c.defs.append(f'<filter id="lift" x="-5%" y="-5%" width="110%" height="115%">'
@@ -223,8 +236,8 @@ def page(c: Canvas, t: dict, x: float, y: float, w: float, h: float, grid: bool 
     lift = ' filter="url(#lift)"' if t["shadow"] else ""
     c.add(f'<rect x="{num(x)}" y="{num(y)}" width="{num(w)}" height="{num(h)}" rx="10" fill="{t["page"]}"{lift}/>')
     if grid:
-        c.defs.append(f'<pattern id="squares" x="{num(x)}" y="{num(y)}" width="24" height="24" '
-                      f'patternUnits="userSpaceOnUse"><path d="M24 0H0V24" fill="none" '
+        c.defs.append(f'<pattern id="squares" x="{num(x)}" y="{num(y)}" width="{step}" height="{step}" '
+                      f'patternUnits="userSpaceOnUse"><path d="M{step} 0H0V{step}" fill="none" '
                       f'stroke="{t["grid"]}" stroke-width="1"/></pattern>')
         c.add(f'<rect x="{num(x)}" y="{num(y)}" width="{num(w)}" height="{num(h)}" rx="10" fill="url(#squares)"/>')
     c.add(f'<rect x="{num(x + .5)}" y="{num(y + .5)}" width="{num(w - 1)}" height="{num(h - 1)}" rx="9.5" '
@@ -236,7 +249,7 @@ def page(c: Canvas, t: dict, x: float, y: float, w: float, h: float, grid: bool 
 def header(cfg: dict, theme: str) -> str:
     t = THEMES[theme]
     person = cfg["person"]
-    c = Canvas(1000, 304, f'{person["greeting"]} {person["name"]}. {person["tagline"]}')
+    c = Canvas(1000, 304, f'{person["greetings"][0]} {person["name"]}. {person["tagline"]}')
     page(c, t, 8, 8, 984, 288)
     c.add(f'<path d="M104 9V295" stroke="{t["margin"]}" stroke-width="1.5"/>')
     c.css.append(
@@ -259,11 +272,24 @@ def header(cfg: dict, theme: str) -> str:
     clock = 0.2
     writing = []
     # The greeting and the name write themselves, letter by letter.
-    for d in hand.outlines(person["greeting"], 40, left + 4, 62):
-        writing.append(f'<path class="w soft" pathLength="1" d="{d}" '
-                       f'style="animation-delay:{secs(clock)},{secs(clock + .4)}"/>')
-        clock += .07
-    clock += .25
+    # "Hi, I'm" first, then the same greeting in Bulgarian, Turkish and German, over and over.
+    greetings, window = person["greetings"], 5.0
+    cycle = window * len(greetings)
+
+    def at(seconds: float) -> str:
+        return f"{100 * seconds / cycle:.2f}%"
+
+    c.css.append(
+        f"@keyframes greet{{0%{{stroke-dashoffset:1;fill-opacity:0;opacity:1}}{at(.45)}{{fill-opacity:0}}"
+        f"{at(.9)}{{stroke-dashoffset:0}}{at(1.15)}{{fill-opacity:1}}{at(4.3)}{{opacity:1}}"
+        f"{at(4.75)},100%{{opacity:0;stroke-dashoffset:0;fill-opacity:1}}}}"
+        f".gr{{fill:{t['ink_soft']};stroke:{t['ink_soft']};stroke-width:1;stroke-linejoin:round;"
+        f"stroke-dasharray:1 2;opacity:0;animation:greet {num(cycle)}s linear infinite both}}.gr.first{{opacity:1}}")
+    for k, greeting in enumerate(greetings):
+        for i, d in enumerate(hand.outlines(greeting, 40, left + 4, 62)):
+            writing.append(f'<path class="gr{" first" if k == 0 else ""}" pathLength="1" d="{d}" '
+                           f'style="animation-delay:{secs(clock + window * k + .06 * i)}"/>')
+    clock += .06 * len(hand.outlines(greetings[0], 40, 0, 0)) + .25
     for d in hand.outlines(person["name"], 104, left - 4, 140):
         writing.append(f'<path class="w" pathLength="1" d="{d}" '
                        f'style="animation-delay:{secs(clock)},{secs(clock + .45)}"/>')
@@ -493,6 +519,212 @@ def route(c: Canvas, t: dict, project: dict, bx: float, by: float, bw: float, bh
 PICTURES = {"schedule": schedule, "service-map": service_map, "flashcard": flashcard, "route": route}
 
 
+# Journey ---------------------------------------------------------------------
+
+def smooth_path(points: list[tuple[float, float]]):
+    """A Catmull-Rom curve through the points, as SVG path data and cubic segments."""
+    segments = []
+    for i in range(len(points) - 1):
+        p0, p1, p2 = points[max(i - 1, 0)], points[i], points[i + 1]
+        p3 = points[min(i + 2, len(points) - 1)]
+        c1 = (p1[0] + (p2[0] - p0[0]) / 6, p1[1] + (p2[1] - p0[1]) / 6)
+        c2 = (p2[0] - (p3[0] - p1[0]) / 6, p2[1] - (p3[1] - p1[1]) / 6)
+        segments.append((p1, c1, c2, p2))
+    d = f"M{num(points[0][0])} {num(points[0][1])}" + "".join(
+        f"C{num(a[0])} {num(a[1])} {num(b[0])} {num(b[1])} {num(e[0])} {num(e[1])}" for _, a, b, e in segments)
+    return d, segments
+
+
+def walk(segments, per_segment: int = 48):
+    """Points along the curve, their running length, and the length at the end of each segment."""
+    points, lengths, ends = [segments[0][0]], [0.0], []
+    for (x0, y0), (x1, y1), (x2, y2), (x3, y3) in segments:
+        for j in range(1, per_segment + 1):
+            s = j / per_segment
+            u = 1 - s
+            p = (u ** 3 * x0 + 3 * u * u * s * x1 + 3 * u * s * s * x2 + s ** 3 * x3,
+                 u ** 3 * y0 + 3 * u * u * s * y1 + 3 * u * s * s * y2 + s ** 3 * y3)
+            lengths.append(lengths[-1] + math.dist(points[-1], p))
+            points.append(p)
+        ends.append(lengths[-1])
+    return points, lengths, ends
+
+
+def point_at(points, lengths, target: float) -> tuple[float, float]:
+    for i in range(1, len(lengths)):
+        if lengths[i] >= target:
+            f = (target - lengths[i - 1]) / ((lengths[i] - lengths[i - 1]) or 1)
+            return (points[i - 1][0] + f * (points[i][0] - points[i - 1][0]),
+                    points[i - 1][1] + f * (points[i][1] - points[i - 1][1]))
+    return points[-1]
+
+
+def pencil(t: dict) -> str:
+    """A yellow pencil with its point at (0, 0), held at an angle."""
+    line = f'stroke="{t["pencil_line"]}" stroke-width="1.2" stroke-linejoin="round"'
+    return (f'<g transform="rotate(-38)">'
+            f'<path d="M0 0 13-5V5Z" fill="#F3D2AC" {line}/>'
+            f'<path d="M0 0 4.6-1.8V1.8Z" fill="{t["pencil_line"]}"/>'
+            f'<rect x="13" y="-5" width="38" height="10" fill="#FCD34D" {line}/>'
+            f'<path d="M13-1.7H51M13 1.7H51" stroke="#D9A514" stroke-width=".8"/>'
+            f'<rect x="51" y="-5.4" width="6" height="10.8" fill="#CBD5E1" {line}/>'
+            f'<path d="M57-5h4.6a3 3 0 0 1 3 3v4a3 3 0 0 1-3 3H57Z" fill="#F9A8D4" {line}/></g>')
+
+
+def journey(cfg: dict, theme: str) -> str:
+    """A pencil draws the timeline; each milestone appears when the line reaches it."""
+    t = THEMES[theme]
+    items = cfg["journey"]
+    c = Canvas(1000, 250, "My journey. " + " ".join(f'{i["when"]}: {i["what"]}.' for i in items))
+    page(c, t, 8, 8, 984, 234)
+    xs = [118 + 764 * k / (len(items) - 1) for k in range(len(items))]
+    ys = [126 + (-11 if k % 2 == 0 else 11) for k in range(len(items))]
+    d, segments = smooth_path([(52, 134)] + list(zip(xs, ys)) + [(912, 118)])
+    points, lengths, ends = walk(segments)
+    start, duration, lift = .4, 4.6, .5
+    whole = start + duration + lift
+    frames = "".join(
+        "%.2f%%{transform:translate(%spx,%spx)}" % ((100 * (start + duration * i / 40) / whole,)
+                                                   + tuple(num(v) for v in point_at(points, lengths, lengths[-1] * i / 40)))
+        for i in range(41))
+    rest = (num(points[-1][0] + 2), num(points[-1][1] - 7))
+    c.css.append(
+        ".trail{stroke-dasharray:1 2;animation:draw %ss linear %ss both}" % (num(duration), num(start))
+        + "@keyframes pencil{0%%{transform:translate(%spx,%spx)}%s100%%{transform:translate(%spx,%spx)}}"
+        % (num(points[0][0]), num(points[0][1]), frames, *rest)
+        + ".pencil{transform:translate(%spx,%spx);animation:pencil %ss linear both}" % (*rest, num(whole))
+        + "@keyframes dot{from{opacity:0;transform:scale(.3)}}"
+        ".dot{transform-box:fill-box;transform-origin:50% 50%;animation:dot .45s cubic-bezier(.3,.7,.3,1.4) both}"
+        ".rise{animation:fade .6s ease-out both}"
+        "@keyframes pulse{0%{opacity:.8;transform:scale(1)}70%,100%{opacity:0;transform:scale(2.6)}}"
+        ".pulse{transform-box:fill-box;transform-origin:50% 50%;opacity:0;animation:pulse 2.4s ease-out infinite}")
+    c.add(f'<path class="trail" pathLength="1" d="{d}" fill="none" stroke="{t["ink"]}" stroke-width="2.4" '
+          f'stroke-linecap="round"/>')
+    sans = Font.get("sans")
+    for k, item in enumerate(items):
+        x, y = xs[k], ys[k]
+        reached = start + duration * ends[k] / lengths[-1]
+        if k == len(items) - 1:
+            c.add(f'<circle class="pulse" cx="{num(x)}" cy="{num(y)}" r="9" fill="none" stroke="{t["accent"]}" '
+                  f'stroke-width="2" style="animation-delay:{secs(reached + .5)}"/>')
+        c.add(f'<circle class="dot" cx="{num(x)}" cy="{num(y)}" r="9" fill="{HIGHLIGHTERS[k % len(HIGHLIGHTERS)]}" '
+              f'stroke="{t["ink"]}" stroke-width="2" style="animation-delay:{secs(reached)}"/>',
+              c.text("hand", item["when"], x, 86, 34, t["ink"], anchor="middle", cls="rise",
+                     style=f"animation-delay:{secs(reached)}"))
+        for j, line in enumerate(balanced(sans, item["what"], 13.5, 172)[:3]):
+            c.add(c.text("sans", line, x, 176 + 18 * j, 13.5, t["text"], anchor="middle", cls="rise",
+                         style=f"animation-delay:{secs(reached + .1)}"))
+    c.add(f'<g class="pencil">{pencil(t)}</g>')
+    return c.render()
+
+
+# Year card -------------------------------------------------------------------
+
+def longest_run(days: list) -> list[str]:
+    """Dates of the longest run of days in a row with contributions."""
+    best, run, previous = [], [], None
+    for date_text, count in sorted(days):
+        date = dt.date.fromisoformat(date_text)
+        if count and run and previous is not None and (date - previous).days == 1:
+            run.append(date_text)
+        else:
+            run = [date_text] if count else []
+        if len(run) > len(best):
+            best = list(run)
+        previous = date
+    return best
+
+
+def year_card(days: list, theme: str) -> str:
+    """The contribution calendar coloured in by pen on squared paper; a red pen circles the longest streak."""
+    t = THEMES[theme]
+    days = sorted(days)
+    sunday = dt.date.fromisoformat(days[0][0])
+    sunday -= dt.timedelta(days=(sunday.weekday() + 1) % 7)
+    place = {}
+    for date_text, count in days:
+        date = dt.date.fromisoformat(date_text)
+        place[date_text] = ((date - sunday).days // 7, (date.weekday() + 1) % 7, count, date)
+    columns = max(col for col, *_ in place.values()) + 1
+    counts = sorted(count for _, _, count, _ in place.values() if count)
+    steps = [counts[int(len(counts) * f)] for f in (.25, .5, .75)] if counts else [0, 0, 0]
+    streak = longest_run(days)
+    total = sum(count for _, count in days)
+    c = Canvas(1000, 240, f"My contribution calendar for the last 12 months, {total} contributions, coloured in "
+               "by pen." + (f" A red pen circles my longest streak: {len(streak)} days in a row." if len(streak) > 1 else ""))
+    page(c, t, 8, 8, 984, 224, step=16)
+    x0, y0, cycle = 88, 56, 18.0
+
+    def at(seconds: float) -> str:
+        return f"{100 * seconds / cycle:.2f}%"
+
+    hold, gone = at(12.6), at(13.2)
+    c.css.append(
+        f"@keyframes colour{{0%{{stroke-dashoffset:1;opacity:1}}{at(.6)}{{stroke-dashoffset:0}}{hold}{{opacity:1}}"
+        f"{gone},100%{{opacity:0;stroke-dashoffset:0}}}}"
+        f".scribble{{stroke-dasharray:1 2;animation:colour {num(cycle)}s linear infinite both}}"
+        f"@keyframes wash{{0%{{opacity:0}}{at(.6)}{{opacity:1}}{hold}{{opacity:1}}{gone},100%{{opacity:0}}}}"
+        f".wash{{animation:wash {num(cycle)}s linear infinite both}}"
+        f"@keyframes circle{{0%{{stroke-dashoffset:1;opacity:1}}{at(1)}{{stroke-dashoffset:0}}{hold}{{opacity:1}}"
+        f"{gone},100%{{opacity:0;stroke-dashoffset:0}}}}"
+        f".circle{{stroke-dasharray:1 2;animation:circle {num(cycle)}s ease-in-out infinite both}}"
+        f"@keyframes note{{0%{{stroke-dashoffset:1;fill-opacity:0;opacity:1}}{at(.45)}{{stroke-dashoffset:0}}"
+        f"{at(.7)}{{fill-opacity:1}}{hold}{{opacity:1}}{gone},100%{{opacity:0;stroke-dashoffset:0;fill-opacity:1}}}}"
+        f".note{{fill:{t['red']};stroke:{t['red']};stroke-width:.9;stroke-linejoin:round;stroke-dasharray:1 2;"
+        f"animation:note {num(cycle)}s linear infinite both}}")
+
+    labelled = -9
+    for _, (col, row, count, date) in sorted(place.items()):
+        if date.day == 1 and col - labelled >= 3:
+            c.add(c.text("sans", f"{date:%b}", x0 + col * 16 + 2, y0 - 9, 11.5, t["faint"]))
+            labelled = col
+    for row, name in ((1, "Mon"), (3, "Wed"), (5, "Fri")):
+        c.add(c.text("sans", name, x0 - 8, y0 + row * 16 + 12, 11, t["faint"], anchor="end"))
+
+    for _, (col, row, count, date) in sorted(place.items()):
+        x, y = x0 + col * 16 + 2, y0 + row * 16 + 2
+        c.add(f'<rect x="{x}" y="{y}" width="12" height="12" rx="2" fill="{t["chip"]}"/>')
+        if not count:
+            continue
+        level = 1 + sum(count > step for step in steps)
+        delay = secs(.3 + 4.2 * col / columns)
+        if level >= 3:
+            c.add(f'<rect class="wash" x="{x}" y="{y}" width="12" height="12" rx="2" fill="{t["ink"]}" '
+                  f'fill-opacity="{(.2, .36)[level - 3]}" style="animation-delay:{delay}"/>')
+        strokes = 8
+        zigzag = []
+        for i in range(strokes):  # back-and-forth diagonal strokes, like colouring in a square
+            reach = 4 + 14 * i / (strokes - 1)
+            ends = [(x + max(2, reach - 8), y + min(10, reach - 2)), (x + min(10, reach - 2), y + max(2, reach - 8))]
+            zigzag += ends if i % 2 == 0 else ends[::-1]
+        path = "M" + "L".join(f"{num(px)} {num(py)}" for px, py in zigzag)
+        c.add(f'<path class="scribble" pathLength="1" d="{path}" fill="none" stroke="{t["ink"]}" '
+              f'stroke-width="1.2" stroke-opacity="{(.45, .62, .8, 1)[level - 1]}" stroke-linecap="round" stroke-linejoin="round" '
+              f'style="animation-delay:{delay}"/>')
+
+    if len(streak) > 1:
+        spots = [place[d] for d in streak]
+        left, right = x0 + min(s[0] for s in spots) * 16, x0 + (max(s[0] for s in spots) + 1) * 16
+        top, bottom = y0 + min(s[1] for s in spots) * 16, y0 + (max(s[1] for s in spots) + 1) * 16
+        cx, cy = (left + right) / 2, (top + bottom) / 2
+        rx, ry = (right - left) / 2 + 12, (bottom - top) / 2 + 10
+        loop = [(cx + rx * (1 + .07 * i / 36) * math.cos(-2.6 + (2 * math.pi + .55) * i / 36),
+                 cy + ry * (1 + .05 * i / 36) * math.sin(-2.6 + (2 * math.pi + .55) * i / 36)) for i in range(37)]
+        circled, _ = smooth_path(loop)
+        drawn_at = .3 + 4.2 + .5
+        c.add(f'<path class="circle" pathLength="1" d="{circled}" fill="none" stroke="{t["red"]}" stroke-width="2.3" '
+              f'stroke-linecap="round" style="animation-delay:{secs(drawn_at)}"/>')
+        note = f"{len(streak)} days in a row!"
+        hand = Font.get("hand")
+        width = hand.width(note, 28)
+        note_x = min(max(cx - width / 2, 40), 960 - width)
+        note_y = min(cy + ry * 1.05 + 28, 222)
+        for i, glyph in enumerate(hand.outlines(note, 28, note_x, note_y)):
+            c.add(f'<path class="note" pathLength="1" d="{glyph}" '
+                  f'style="animation-delay:{secs(drawn_at + 1.1 + .05 * i)}"/>')
+    return c.render()
+
+
 # Activity card ---------------------------------------------------------------
 
 QUERY = """
@@ -515,6 +747,8 @@ SAMPLE = {
     "languages": [["C#", 38.4], ["Java", 24.9], ["TypeScript", 15.2], ["JavaScript", 9.8], ["HTML", 6.9],
                   ["Other", 4.8]],
     "updated": "2026-11-21",
+    "days": [[(dt.date(2026, 11, 21) - dt.timedelta(days=370 - i)).isoformat(),
+              (i * 7 % 11) if i % 9 in (0, 1, 4) or 337 <= i <= 347 else 0] for i in range(371)],
 }
 
 
@@ -555,6 +789,7 @@ def fetch_activity(settings: dict, token: str) -> dict:
         "pull_requests": user["contributionsCollection"]["totalPullRequestContributions"],
         "longest_streak": longest,
         "languages": languages,
+        "days": [[d["date"], d["contributionCount"]] for w in calendar["weeks"] for d in w["contributionDays"]],
         "updated": dt.date.today().isoformat(),
     }
 
@@ -612,6 +847,7 @@ def main() -> None:
         out = ROOT / "assets"
         for theme in THEMES:
             write(out / f"header-{theme}.svg", header(cfg, theme))
+            write(out / f"journey-{theme}.svg", journey(cfg, theme))
             for link in cfg["links"]:
                 write(out / f"link-{link['file']}-{theme}.svg", link_button(link, theme))
             for project in cfg["projects"]:
@@ -624,6 +860,7 @@ def main() -> None:
             data = fetch_activity(cfg["activity"], token)
         for theme in THEMES:
             write(Path(args.out).resolve() / f"activity-{theme}.svg", activity_card(data, theme))
+            write(Path(args.out).resolve() / f"year-{theme}.svg", year_card(data["days"], theme))
 
 
 def raise_missing_token() -> str:

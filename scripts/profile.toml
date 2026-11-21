@@ -3,7 +3,8 @@
 # assets/*.svg about a minute later. README.md itself is edited by hand.
 
 [person]
-greeting = "Hi, I'm"
+# The greeting rewrites itself in each language, one after another.
+greetings = ["Hi, I'm", "Здравей, аз съм", "Merhaba, ben", "Hallo, ich bin"]
 name = "Sema Çakır"
 tagline = "Full-stack developer with a soft spot for clean flows and useful details."
 note = ["Thoughtful code", "for real people."]
@@ -30,6 +31,27 @@ icon = "envelope"
 file = "instagram"
 label = "Instagram"
 icon = "camera"
+
+# The timeline a pencil draws, oldest first.
+[[journey]]
+when = "2016"
+what = "Software and hardware sciences at Hristo Botev Secondary School"
+
+[[journey]]
+when = "2021"
+what = "Bachelor's in Software Engineering, University of Ruse"
+
+[[journey]]
+when = "2025"
+what = "Master's in Software Engineering, University of Ruse"
+
+[[journey]]
+when = "2026"
+what = "Teaching math and programming at EduQuest"
+
+[[journey]]
+when = "now"
+what = "Building AutoFlow"
 
 # Project cards. Pictures: schedule, service-map, flashcard, route.
 [[projects]]
@@ -64,4 +86,4 @@ picture = "route"
 # The yearly activity card, redrawn every night from the GitHub API.
 [activity]
 user = "iamsemacakir"
-hide_languages = []
+hide_languages = ["HTML", "CSS"]

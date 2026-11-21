@@ -1,6 +1,6 @@
 <!--
   The images are drawn by scripts/build.py from the words in scripts/profile.toml.
-  The activity card and the snake are redrawn every night by .github/workflows/activity.yml.
+  The activity card, the coloured-in calendar and the snake are redrawn every night by .github/workflows/activity.yml.
 -->
 
 <a href="https://iamsemacakir.github.io/">
@@ -24,10 +24,16 @@ I'm Sema, a software engineer and Master's student at the University of Ruse "An
 I care about code that other people can understand. Teaching math and programming keeps me close to the basics, and building projects keeps me curious about how small choices make a product feel easier, faster and kinder to use.
 
 - 🔧 Building [AutoFlow](https://github.com/iamsemacakir/AutoFlow), a management system for independent car workshops
-- 🎓 Master's in Software Engineering at the University of Ruse (2025–2027)
 - 👩‍🏫 Teaching programming and math to students from 1st to 12th grade at EduQuest
 - 📍 Ruse, Bulgaria and Hamburg, Germany
 - 💬 Bulgarian and Turkish (native), English (B2/C1), German (A1/A2)
+
+### My journey
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="assets/journey-dark.svg">
+  <img src="assets/journey-light.svg" width="100%" alt="My journey. 2016: software and hardware sciences at Hristo Botev Secondary School. 2021: Bachelor's in Software Engineering, University of Ruse. 2025: Master's in Software Engineering, University of Ruse. 2026: teaching math and programming at EduQuest. Now: building AutoFlow.">
+</picture>
 
 ### Things I've built
 
@@ -52,6 +58,11 @@ Live demos: [AutoFlow](https://iamsemacakir.github.io/autoflow/), [LangForU](htt
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/iamsemacakir/iamsemacakir/output/activity-dark.svg">
   <img src="https://raw.githubusercontent.com/iamsemacakir/iamsemacakir/output/activity-light.svg" width="100%" alt="Contributions, commits, pull requests, longest streak and top languages over the last 12 months">
+</picture>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/iamsemacakir/iamsemacakir/output/year-dark.svg">
+  <img src="https://raw.githubusercontent.com/iamsemacakir/iamsemacakir/output/year-light.svg" width="100%" alt="My contribution calendar for the last 12 months, coloured in by pen, with my longest streak circled in red">
 </picture>
 
 <picture>

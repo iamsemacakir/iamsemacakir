@@ -1,5 +1,5 @@
-# Every night: draws the activity card and the contribution snake,
-# then publishes both to the "output" branch that README.md points at.
+# Every night: draws the activity card, the coloured-in contribution calendar and
+# the contribution snake, then publishes them to the "output" branch that README.md points at.
 name: Profile activity
 
 on:
@@ -10,6 +10,7 @@ on:
     paths:
       - .github/workflows/activity.yml
       - scripts/build.py
+      - scripts/profile.toml
   workflow_dispatch:
 
 permissions:
@@ -30,7 +31,7 @@ jobs:
           python-version: "3.13"
       - run: pip install -r scripts/requirements.txt
 
-      - name: Activity card
+      - name: Activity card and calendar
         run: python scripts/build.py activity --out dist
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
