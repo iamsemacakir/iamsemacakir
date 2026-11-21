@@ -30,6 +30,10 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
+      - uses: actions/cache@v6
+        with:
+          path: .cache/fonts
+          key: fonts-${{ hashFiles('scripts/build.py') }}
       - run: pip install -r scripts/requirements.txt
 
       - name: Activity card
