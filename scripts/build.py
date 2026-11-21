@@ -64,7 +64,8 @@ THEMES = {
         "chip": "#1E2839", "shadow": 0.0, "note_shadow": 0.55, "ink_soft": "#7894C4", "pencil_line": "#0B0F17",
     },
 }
-HIGHLIGHTERS = ["#93C5FD", "#FCD34D", "#F9A8D4", "#86EFAC", "#C4B5FD", "#FDBA74"]
+HIGHLIGHTERS = ["#93C5FD", "#FCD34D", "#F9A8D4", "#86EFAC", "#C4B5FD", "#FDBA74", "#5EEAD4", "#FDA4AF",
+                "#BEF264", "#A5B4FC", "#7DD3FC", "#F0ABFC", "#FDE68A", "#99F6E4"]
 
 REDUCED_MOTION = "@media (prefers-reduced-motion:reduce){*{animation:none!important}}"
 SHARED_CSS = (
@@ -572,7 +573,9 @@ def pencil(t: dict) -> str:
 
 
 def journey(cfg: dict, theme: str) -> str:
-    """A pencil draws the timeline; each milestone appears when the line reaches it."""
+    """A pencil draws the timeline and each milestone pops up as the line reaches it.
+    The drawing starts a moment after the picture appears and repeats every 16 seconds,
+    so whoever scrolls down to it sees the pencil at work."""
     t = THEMES[theme]
     items = cfg["journey"]
     c = Canvas(1000, 250, "My journey. " + " ".join(f'{i["when"]}: {i["what"]}.' for i in items))
@@ -581,20 +584,31 @@ def journey(cfg: dict, theme: str) -> str:
     ys = [126 + (-11 if k % 2 == 0 else 11) for k in range(len(items))]
     d, segments = smooth_path([(52, 134)] + list(zip(xs, ys)) + [(912, 118)])
     points, lengths, ends = walk(segments)
-    start, duration, lift = .4, 4.6, .5
-    whole = start + duration + lift
-    frames = "".join(
-        "%.2f%%{transform:translate(%spx,%spx)}" % ((100 * (start + duration * i / 40) / whole,)
-                                                   + tuple(num(v) for v in point_at(points, lengths, lengths[-1] * i / 40)))
-        for i in range(41))
-    rest = (num(points[-1][0] + 2), num(points[-1][1] - 7))
+    start, duration, cycle = 1.0, 4.6, 16.0
+    fade_from, fade_to = cycle - 1.4, cycle - .7
+
+    def at(seconds: float) -> str:
+        return f"{100 * seconds / cycle:.2f}%"
+
+    def spot(fraction: float) -> str:
+        x, y = point_at(points, lengths, lengths[-1] * fraction)
+        return f"translate({num(x)}px,{num(y)}px)"
+
+    first = spot(0)
+    resting = f"translate({num(points[-1][0] + 2)}px,{num(points[-1][1] - 7)}px)"
+    pencil_frames = (
+        f"0%{{transform:{first};opacity:1}}{at(start)}{{transform:{first}}}"
+        + "".join(f"{at(start + duration * i / 40)}{{transform:{spot(i / 40)}}}" for i in range(1, 41))
+        + f"{at(start + duration + .4)}{{transform:{resting}}}{at(fade_from)}{{transform:{resting};opacity:1}}"
+        f"{at(fade_to)}{{transform:{resting};opacity:0}}{at(cycle - .3)}{{transform:{first};opacity:0}}"
+        f"100%{{transform:{first};opacity:1}}")
     c.css.append(
-        ".trail{stroke-dasharray:1 2;animation:draw %ss linear %ss both}" % (num(duration), num(start))
-        + "@keyframes pencil{0%%{transform:translate(%spx,%spx)}%s100%%{transform:translate(%spx,%spx)}}"
-        % (num(points[0][0]), num(points[0][1]), frames, *rest)
-        + ".pencil{transform:translate(%spx,%spx);animation:pencil %ss linear both}" % (*rest, num(whole))
-        + "@keyframes dot{from{opacity:0;transform:scale(.3)}}"
-        ".dot{transform-box:fill-box;transform-origin:50% 50%;animation:dot .45s cubic-bezier(.3,.7,.3,1.4) both}"
+        f"@keyframes pencil{{{pencil_frames}}}"
+        f".pencil{{transform:{resting};animation:pencil {num(cycle)}s linear infinite}}"
+        f"@keyframes trail{{0%,{at(start)}{{stroke-dashoffset:1;opacity:1}}{at(start + duration)}{{stroke-dashoffset:0}}"
+        f"{at(fade_from)}{{opacity:1}}{at(fade_to)},100%{{stroke-dashoffset:0;opacity:0}}}}"
+        f".trail{{stroke-dasharray:1 2;animation:trail {num(cycle)}s linear infinite}}"
+        ".dot{transform-box:fill-box;transform-origin:50% 50%}"
         ".rise{animation:fade .6s ease-out both}"
         "@keyframes pulse{0%{opacity:.8;transform:scale(1)}70%,100%{opacity:0;transform:scale(2.6)}}"
         ".pulse{transform-box:fill-box;transform-origin:50% 50%;opacity:0;animation:pulse 2.4s ease-out infinite}")
@@ -604,11 +618,16 @@ def journey(cfg: dict, theme: str) -> str:
     for k, item in enumerate(items):
         x, y = xs[k], ys[k]
         reached = start + duration * ends[k] / lengths[-1]
+        c.css.append(
+            f"@keyframes dot{k}{{0%,{at(reached)}{{opacity:0;transform:scale(.3)}}"
+            f"{at(reached + .3)}{{opacity:1;transform:scale(1.15)}}{at(reached + .45)}{{transform:scale(1)}}"
+            f"{at(fade_from)}{{opacity:1;transform:scale(1)}}{at(fade_to)},100%{{opacity:0;transform:scale(1)}}}}"
+            f".dot{k}{{animation:dot{k} {num(cycle)}s linear infinite}}")
         if k == len(items) - 1:
             c.add(f'<circle class="pulse" cx="{num(x)}" cy="{num(y)}" r="9" fill="none" stroke="{t["accent"]}" '
                   f'stroke-width="2" style="animation-delay:{secs(reached + .5)}"/>')
-        c.add(f'<circle class="dot" cx="{num(x)}" cy="{num(y)}" r="9" fill="{HIGHLIGHTERS[k % len(HIGHLIGHTERS)]}" '
-              f'stroke="{t["ink"]}" stroke-width="2" style="animation-delay:{secs(reached)}"/>',
+        c.add(f'<circle class="dot dot{k}" cx="{num(x)}" cy="{num(y)}" r="9" '
+              f'fill="{HIGHLIGHTERS[k % len(HIGHLIGHTERS)]}" stroke="{t["ink"]}" stroke-width="2"/>',
               c.text("hand", item["when"], x, 86, 34, t["ink"], anchor="middle", cls="rise",
                      style=f"animation-delay:{secs(reached)}"))
         for j, line in enumerate(balanced(sans, item["what"], 13.5, 172)[:3]):
@@ -619,21 +638,6 @@ def journey(cfg: dict, theme: str) -> str:
 
 
 # Year card -------------------------------------------------------------------
-
-def longest_run(days: list) -> list[str]:
-    """Dates of the longest run of days in a row with contributions."""
-    best, run, previous = [], [], None
-    for date_text, count in sorted(days):
-        date = dt.date.fromisoformat(date_text)
-        if count and run and previous is not None and (date - previous).days == 1:
-            run.append(date_text)
-        else:
-            run = [date_text] if count else []
-        if len(run) > len(best):
-            best = list(run)
-        previous = date
-    return best
-
 
 def year_card(days: list, theme: str) -> str:
     """The contribution calendar coloured in by pen on squared paper; a red pen circles the longest streak."""
@@ -648,10 +652,8 @@ def year_card(days: list, theme: str) -> str:
     columns = max(col for col, *_ in place.values()) + 1
     counts = sorted(count for _, _, count, _ in place.values() if count)
     steps = [counts[int(len(counts) * f)] for f in (.25, .5, .75)] if counts else [0, 0, 0]
-    streak = longest_run(days)
     total = sum(count for _, count in days)
-    c = Canvas(1000, 240, f"My contribution calendar for the last 12 months, {total} contributions, coloured in "
-               "by pen." + (f" A red pen circles my longest streak: {len(streak)} days in a row." if len(streak) > 1 else ""))
+    c = Canvas(1000, 240, f"My contribution calendar for the last 12 months, {total} contributions, coloured in by pen.")
     page(c, t, 8, 8, 984, 224, step=16)
     x0, y0, cycle = 88, 56, 18.0
 
@@ -665,13 +667,7 @@ def year_card(days: list, theme: str) -> str:
         f".scribble{{stroke-dasharray:1 2;animation:colour {num(cycle)}s linear infinite both}}"
         f"@keyframes wash{{0%{{opacity:0}}{at(.6)}{{opacity:1}}{hold}{{opacity:1}}{gone},100%{{opacity:0}}}}"
         f".wash{{animation:wash {num(cycle)}s linear infinite both}}"
-        f"@keyframes circle{{0%{{stroke-dashoffset:1;opacity:1}}{at(1)}{{stroke-dashoffset:0}}{hold}{{opacity:1}}"
-        f"{gone},100%{{opacity:0;stroke-dashoffset:0}}}}"
-        f".circle{{stroke-dasharray:1 2;animation:circle {num(cycle)}s ease-in-out infinite both}}"
-        f"@keyframes note{{0%{{stroke-dashoffset:1;fill-opacity:0;opacity:1}}{at(.45)}{{stroke-dashoffset:0}}"
-        f"{at(.7)}{{fill-opacity:1}}{hold}{{opacity:1}}{gone},100%{{opacity:0;stroke-dashoffset:0;fill-opacity:1}}}}"
-        f".note{{fill:{t['red']};stroke:{t['red']};stroke-width:.9;stroke-linejoin:round;stroke-dasharray:1 2;"
-        f"animation:note {num(cycle)}s linear infinite both}}")
+)
 
     labelled = -9
     for _, (col, row, count, date) in sorted(place.items()):
@@ -702,26 +698,6 @@ def year_card(days: list, theme: str) -> str:
               f'stroke-width="1.2" stroke-opacity="{(.45, .62, .8, 1)[level - 1]}" stroke-linecap="round" stroke-linejoin="round" '
               f'style="animation-delay:{delay}"/>')
 
-    if len(streak) > 1:
-        spots = [place[d] for d in streak]
-        left, right = x0 + min(s[0] for s in spots) * 16, x0 + (max(s[0] for s in spots) + 1) * 16
-        top, bottom = y0 + min(s[1] for s in spots) * 16, y0 + (max(s[1] for s in spots) + 1) * 16
-        cx, cy = (left + right) / 2, (top + bottom) / 2
-        rx, ry = (right - left) / 2 + 12, (bottom - top) / 2 + 10
-        loop = [(cx + rx * (1 + .07 * i / 36) * math.cos(-2.6 + (2 * math.pi + .55) * i / 36),
-                 cy + ry * (1 + .05 * i / 36) * math.sin(-2.6 + (2 * math.pi + .55) * i / 36)) for i in range(37)]
-        circled, _ = smooth_path(loop)
-        drawn_at = .3 + 4.2 + .5
-        c.add(f'<path class="circle" pathLength="1" d="{circled}" fill="none" stroke="{t["red"]}" stroke-width="2.3" '
-              f'stroke-linecap="round" style="animation-delay:{secs(drawn_at)}"/>')
-        note = f"{len(streak)} days in a row!"
-        hand = Font.get("hand")
-        width = hand.width(note, 28)
-        note_x = min(max(cx - width / 2, 40), 960 - width)
-        note_y = min(cy + ry * 1.05 + 28, 222)
-        for i, glyph in enumerate(hand.outlines(note, 28, note_x, note_y)):
-            c.add(f'<path class="note" pathLength="1" d="{glyph}" '
-                  f'style="animation-delay:{secs(drawn_at + 1.1 + .05 * i)}"/>')
     return c.render()
 
 
@@ -736,7 +712,7 @@ query($login: String!) {
       contributionCalendar { totalContributions weeks { contributionDays { date contributionCount } } }
     }
     repositories(ownerAffiliations: OWNER, isFork: false, privacy: PUBLIC, first: 100) {
-      nodes { languages(first: 10, orderBy: {field: SIZE, direction: DESC}) { edges { size node { name } } } }
+      nodes { name languages(first: 30, orderBy: {field: SIZE, direction: DESC}) { edges { size node { name } } } }
     }
   }
 }
@@ -773,16 +749,14 @@ def fetch_activity(settings: dict, token: str) -> dict:
     hidden = {name.lower() for name in settings.get("hide_languages", [])}
     sizes: dict[str, int] = {}
     for repo in user["repositories"]["nodes"]:
+        if repo["name"].lower() == settings["user"].lower():
+            continue  # this profile repo only holds the script that draws these pictures
         for edge in repo["languages"]["edges"]:
             name = edge["node"]["name"]
             if name.lower() not in hidden:
                 sizes[name] = sizes.get(name, 0) + edge["size"]
     total = sum(sizes.values()) or 1
-    ranked = sorted(sizes.items(), key=lambda item: -item[1])
-    shown = ranked if len(ranked) <= 6 else ranked[:5]
-    languages = [[name, 100 * size / total] for name, size in shown]
-    if len(ranked) > 6:
-        languages.append(["Other", 100 * sum(size for _, size in ranked[5:]) / total])
+    languages = [[name, 100 * size / total] for name, size in sorted(sizes.items(), key=lambda item: -item[1])]
     return {
         "contributions": calendar["totalContributions"],
         "commits": user["contributionsCollection"]["totalCommitContributions"],
@@ -794,34 +768,75 @@ def fetch_activity(settings: dict, token: str) -> dict:
     }
 
 
-def activity_card(data: dict, theme: str) -> str:
+LANGUAGE_NAMES = {"PLSQL": "PL/SQL"}
+
+
+def activity_card(data: dict, theme: str, also: list | tuple = ()) -> str:
+    """Four numbers from the last year, then every language from my public repos as one
+    hand-drawn bar with a legend, plus languages I've used elsewhere written in by hand."""
     t = THEMES[theme]
     stats = [(data["contributions"], "contributions in the last year"), (data["commits"], "commits"),
              (data["pull_requests"], "pull requests"), (data["longest_streak"], "days in my longest streak")]
-    c = Canvas(1000, 264, "My year on GitHub: " + ", ".join(f"{n} {label}" for n, label in stats)
-               + ". Languages: " + ", ".join(f"{name} {pct:.1f}%" for name, pct in data["languages"]) + ".")
-    page(c, t, 8, 8, 984, 248)
-    c.css.append(".fade{animation:fade .7s ease-out both}")
+    languages = [(LANGUAGE_NAMES.get(name, name), pct) for name, pct in data["languages"]]
+    bold, code, hand = Font.get("sans-bold"), Font.get("code"), Font.get("hand")
+
+    def share(pct: float) -> str:
+        return "<0.1%" if pct < .05 else f"{pct:.1f}%"
+
+    legend, x, row = [], 48, 0
+    for i, (name, pct) in enumerate(languages):
+        width = 18 + bold.width(name, 13.5) + 6 + code.width(share(pct), 12.5)
+        if x + width > 952 and x > 48:
+            x, row = 48, row + 1
+        legend.append((x, row, i, name, pct))
+        x += width + 26
+    written = []
+    for name in also:
+        width = hand.width(f"+ {name}", 25)
+        if x + width > 952 and x > 48:
+            x, row = 48, row + 1
+        written.append((x, row, f"+ {name}"))
+        x += width + 26
+    legend_top = 226
+    height = legend_top + 28 * row + 62
+
+    c = Canvas(1000, height, "My year on GitHub: " + ", ".join(f"{n} {label}" for n, label in stats)
+               + ". Languages in my public repos: " + ", ".join(f"{name} {share(pct)}" for name, pct in languages)
+               + "." + (" Also: " + ", ".join(also) + "." if also else ""))
+    page(c, t, 8, 8, 984, height - 16)
+    c.css.append(".fade{animation:fade .7s ease-out both}"
+                 ".seg{transform-box:fill-box;transform-origin:0 50%;animation:grow linear both}")
     for i, (value, label) in enumerate(stats):
-        x, y = 56 + 230 * (i % 2), 90 + 100 * (i // 2)
-        c.add(c.text("hand", f"{value:,}", x, y, 62, t["ink"], cls="fade", style=f"animation-delay:{secs(.15 + .12 * i)}"))
-        for j, line in enumerate(wrap(Font.get("sans"), label, 14.5, 215)[:2]):
-            c.add(c.text("sans", line, x, y + 25 + 18 * j, 14.5, t["muted"], cls="fade",
-                         style=f"animation-delay:{secs(.25 + .12 * i)}"))
-    c.add(f'<path d="M500 40V224" stroke="{t["ink"]}" stroke-opacity=".3" stroke-dasharray="2 5" stroke-linecap="round"/>')
-    top = max((pct for _, pct in data["languages"]), default=1) or 1
-    for i, (name, pct) in enumerate(data["languages"][:6]):
-        y = 50 + 31 * i
-        width = max(4, 236 * pct / top)
-        c.add(c.text("sans-bold", name, 544, y + 5, 14.5, t["text"]),
-              f'<rect class="grow" x="660" y="{y - 8}" width="{num(width)}" height="16" rx="4" '
-              f'fill="{HIGHLIGHTERS[i % len(HIGHLIGHTERS)]}" stroke="{t["ink"]}" stroke-width="1.2" '
-              f'style="animation-delay:{secs(.35 + .1 * i)}"/>',
-              c.text("code", f"{pct:.1f}%", 660 + width + 10, y + 5, 13, t["muted"], cls="fade",
-                     style=f"animation-delay:{secs(.8 + .1 * i)}"))
+        x = 56 + 232 * i
+        c.add(c.text("hand", f"{value:,}", x, 86, 58, t["ink"], cls="fade", style=f"animation-delay:{secs(.15 + .12 * i)}"),
+              c.text("sans", label, x, 111, 14, t["muted"], cls="fade", style=f"animation-delay:{secs(.25 + .12 * i)}"))
+    c.add(f'<path d="M48 146H952" stroke="{t["ink"]}" stroke-opacity=".3" stroke-dasharray="2 5" stroke-linecap="round"/>')
+
+    total = sum(pct for _, pct in languages) or 1
+    c.defs.append('<clipPath id="bar"><rect x="48" y="166" width="904" height="18" rx="9"/></clipPath>')
+    segments, done = [], 0.0
+    for i, (name, pct) in enumerate(languages):
+        segments.append(
+            f'<rect class="seg" x="{num(48 + 904 * done / total)}" y="166" width="{num(904 * pct / total + .6)}" '
+            f'height="18" fill="{HIGHLIGHTERS[i % len(HIGHLIGHTERS)]}" stroke="{t["ink"]}" stroke-width="1" '
+            f'style="animation-duration:{secs(max(.08, 1.2 * pct / total))};animation-delay:{secs(.4 + 1.2 * done / total)}"/>')
+        done += pct
+    c.add(f'<g clip-path="url(#bar)">{"".join(segments)}</g>',
+          f'<rect x="48" y="166" width="904" height="18" rx="9" fill="none" stroke="{t["ink"]}" stroke-width="1.4"/>')
+
+    for x, row, i, name, pct in legend:
+        y = legend_top + 28 * row
+        delay = f"animation-delay:{secs(.5 + .06 * i)}"
+        c.add(f'<circle class="fade" cx="{num(x + 6)}" cy="{num(y - 4.5)}" r="6" fill="{HIGHLIGHTERS[i % len(HIGHLIGHTERS)]}" '
+              f'stroke="{t["ink"]}" stroke-width="1.1" style="{delay}"/>',
+              c.text("sans-bold", name, x + 18, y, 13.5, t["text"], cls="fade", style=delay),
+              c.text("code", share(pct), x + 18 + bold.width(name, 13.5) + 6, y, 12.5, t["muted"], cls="fade", style=delay))
+    for x, row, label in written:
+        c.add(c.text("hand", label, x, legend_top + 28 * row + 1, 25, t["ink"], cls="fade",
+                     style=f"animation-delay:{secs(1.4)}"))
     updated = dt.date.fromisoformat(data["updated"])
-    c.add(c.text("code", f"Last 12 months, updated {updated.day} {updated:%b %Y}", 970, 240, 12, t["faint"],
-                 anchor="end"))
+    c.add(c.text("code", f"Activity from the last 12 months, languages from my public repos. "
+                         f"Updated {updated.day} {updated:%b %Y}", 952, height - 24, 11.5, t["faint"], anchor="end"))
     return c.render()
 
 
@@ -859,7 +874,8 @@ def main() -> None:
             token = os.environ.get("GITHUB_TOKEN") or raise_missing_token()
             data = fetch_activity(cfg["activity"], token)
         for theme in THEMES:
-            write(Path(args.out).resolve() / f"activity-{theme}.svg", activity_card(data, theme))
+            write(Path(args.out).resolve() / f"activity-{theme}.svg",
+                  activity_card(data, theme, cfg["activity"].get("also_used", [])))
             write(Path(args.out).resolve() / f"year-{theme}.svg", year_card(data["days"], theme))
 
 

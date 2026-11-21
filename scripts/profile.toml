@@ -86,4 +86,9 @@ picture = "route"
 # The yearly activity card, redrawn every night from the GitHub API.
 [activity]
 user = "iamsemacakir"
-hide_languages = ["HTML", "CSS"]
+# Left out of the language chart: markup and styling, plus code that came with
+# tools rather than written by me (an Apache TomEE server in University, GLFW
+# headers in MyCodeLab that GitHub reads as Objective-C, Dockerfiles).
+hide_languages = ["HTML", "CSS", "Dockerfile", "Shell", "Batchfile", "XSLT", "Objective-C"]
+# Languages I've worked with that aren't in my public repos; written in by hand.
+also_used = ["Pascal"]
