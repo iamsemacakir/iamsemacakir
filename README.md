@@ -1,6 +1,6 @@
 <!--
   The images are drawn by scripts/build.py from the words in scripts/profile.toml.
-  The activity card, the coloured-in calendar and the snake are redrawn every night by .github/workflows/activity.yml.
+  The activity card and the snake are redrawn every night by .github/workflows/activity.yml.
 -->
 
 <a href="https://iamsemacakir.github.io/">
@@ -58,11 +58,6 @@ Live demos: [AutoFlow](https://iamsemacakir.github.io/autoflow/), [LangForU](htt
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/iamsemacakir/iamsemacakir/output/activity-dark.svg">
   <img src="https://raw.githubusercontent.com/iamsemacakir/iamsemacakir/output/activity-light.svg" width="100%" alt="Contributions, commits, pull requests, longest streak and top languages over the last 12 months">
-</picture>
-
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://raw.githubusercontent.com/iamsemacakir/iamsemacakir/output/year-dark.svg">
-  <img src="https://raw.githubusercontent.com/iamsemacakir/iamsemacakir/output/year-light.svg" width="100%" alt="My contribution calendar for the last 12 months, coloured in by pen, with my longest streak circled in red">
 </picture>
 
 <picture>

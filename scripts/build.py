@@ -637,70 +637,6 @@ def journey(cfg: dict, theme: str) -> str:
     return c.render()
 
 
-# Year card -------------------------------------------------------------------
-
-def year_card(days: list, theme: str) -> str:
-    """The contribution calendar coloured in by pen on squared paper; a red pen circles the longest streak."""
-    t = THEMES[theme]
-    days = sorted(days)
-    sunday = dt.date.fromisoformat(days[0][0])
-    sunday -= dt.timedelta(days=(sunday.weekday() + 1) % 7)
-    place = {}
-    for date_text, count in days:
-        date = dt.date.fromisoformat(date_text)
-        place[date_text] = ((date - sunday).days // 7, (date.weekday() + 1) % 7, count, date)
-    columns = max(col for col, *_ in place.values()) + 1
-    counts = sorted(count for _, _, count, _ in place.values() if count)
-    steps = [counts[int(len(counts) * f)] for f in (.25, .5, .75)] if counts else [0, 0, 0]
-    total = sum(count for _, count in days)
-    c = Canvas(1000, 240, f"My contribution calendar for the last 12 months, {total} contributions, coloured in by pen.")
-    page(c, t, 8, 8, 984, 224, step=16)
-    x0, y0, cycle = 88, 56, 18.0
-
-    def at(seconds: float) -> str:
-        return f"{100 * seconds / cycle:.2f}%"
-
-    hold, gone = at(12.6), at(13.2)
-    c.css.append(
-        f"@keyframes colour{{0%{{stroke-dashoffset:1;opacity:1}}{at(.6)}{{stroke-dashoffset:0}}{hold}{{opacity:1}}"
-        f"{gone},100%{{opacity:0;stroke-dashoffset:0}}}}"
-        f".scribble{{stroke-dasharray:1 2;animation:colour {num(cycle)}s linear infinite both}}"
-        f"@keyframes wash{{0%{{opacity:0}}{at(.6)}{{opacity:1}}{hold}{{opacity:1}}{gone},100%{{opacity:0}}}}"
-        f".wash{{animation:wash {num(cycle)}s linear infinite both}}"
-)
-
-    labelled = -9
-    for _, (col, row, count, date) in sorted(place.items()):
-        if date.day == 1 and col - labelled >= 3:
-            c.add(c.text("sans", f"{date:%b}", x0 + col * 16 + 2, y0 - 9, 11.5, t["faint"]))
-            labelled = col
-    for row, name in ((1, "Mon"), (3, "Wed"), (5, "Fri")):
-        c.add(c.text("sans", name, x0 - 8, y0 + row * 16 + 12, 11, t["faint"], anchor="end"))
-
-    for _, (col, row, count, date) in sorted(place.items()):
-        x, y = x0 + col * 16 + 2, y0 + row * 16 + 2
-        c.add(f'<rect x="{x}" y="{y}" width="12" height="12" rx="2" fill="{t["chip"]}"/>')
-        if not count:
-            continue
-        level = 1 + sum(count > step for step in steps)
-        delay = secs(.3 + 4.2 * col / columns)
-        if level >= 3:
-            c.add(f'<rect class="wash" x="{x}" y="{y}" width="12" height="12" rx="2" fill="{t["ink"]}" '
-                  f'fill-opacity="{(.2, .36)[level - 3]}" style="animation-delay:{delay}"/>')
-        strokes = 8
-        zigzag = []
-        for i in range(strokes):  # back-and-forth diagonal strokes, like colouring in a square
-            reach = 4 + 14 * i / (strokes - 1)
-            ends = [(x + max(2, reach - 8), y + min(10, reach - 2)), (x + min(10, reach - 2), y + max(2, reach - 8))]
-            zigzag += ends if i % 2 == 0 else ends[::-1]
-        path = "M" + "L".join(f"{num(px)} {num(py)}" for px, py in zigzag)
-        c.add(f'<path class="scribble" pathLength="1" d="{path}" fill="none" stroke="{t["ink"]}" '
-              f'stroke-width="1.2" stroke-opacity="{(.45, .62, .8, 1)[level - 1]}" stroke-linecap="round" stroke-linejoin="round" '
-              f'style="animation-delay:{delay}"/>')
-
-    return c.render()
-
-
 # Activity card ---------------------------------------------------------------
 
 QUERY = """
@@ -723,8 +659,6 @@ SAMPLE = {
     "languages": [["C#", 38.4], ["Java", 24.9], ["TypeScript", 15.2], ["JavaScript", 9.8], ["HTML", 6.9],
                   ["Other", 4.8]],
     "updated": "2026-11-21",
-    "days": [[(dt.date(2026, 11, 21) - dt.timedelta(days=370 - i)).isoformat(),
-              (i * 7 % 11) if i % 9 in (0, 1, 4) or 337 <= i <= 347 else 0] for i in range(371)],
 }
 
 
@@ -763,7 +697,6 @@ def fetch_activity(settings: dict, token: str) -> dict:
         "pull_requests": user["contributionsCollection"]["totalPullRequestContributions"],
         "longest_streak": longest,
         "languages": languages,
-        "days": [[d["date"], d["contributionCount"]] for w in calendar["weeks"] for d in w["contributionDays"]],
         "updated": dt.date.today().isoformat(),
     }
 
@@ -876,7 +809,6 @@ def main() -> None:
         for theme in THEMES:
             write(Path(args.out).resolve() / f"activity-{theme}.svg",
                   activity_card(data, theme, cfg["activity"].get("also_used", [])))
-            write(Path(args.out).resolve() / f"year-{theme}.svg", year_card(data["days"], theme))
 
 
 def raise_missing_token() -> str:
