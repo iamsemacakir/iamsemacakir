@@ -274,7 +274,6 @@ def header(cfg: dict, theme: str) -> str:
     c.css.append(
         f".w{{fill:{t['ink']};stroke:{t['ink']};stroke-width:1.1;stroke-linejoin:round;stroke-dasharray:1 2;"
         "animation:draw .75s cubic-bezier(.5,.1,.3,1) both,ink .5s ease-out both}"
-        ".soft{opacity:.7}"
         ".k{animation:pop 1ms both}"
         ".fade{animation:fade .7s ease-out both}"
         "@keyframes blink{50%{opacity:0}}"
@@ -672,10 +671,10 @@ query($login: String!) {
 }
 """
 
-SAMPLE = {
-    "contributions": 136, "commits": 102, "pull_requests": 5, "longest_streak": 4,
-    "languages": [["C#", 38.4], ["Java", 24.9], ["TypeScript", 15.2], ["JavaScript", 9.8], ["HTML", 6.9],
-                  ["Other", 4.8]],
+SAMPLE = {  # shaped like a real answer, for previews and scripts/check.py
+    "contributions": 135, "commits": 114, "pull_requests": 12, "longest_streak": 11,
+    "languages": [["C#", 39.1], ["Java", 29.2], ["JavaScript", 15.0], ["TypeScript", 4.7], ["SCSS", 4.2],
+                  ["C++", 3.5], ["Python", 2.4], ["C", 1.0], ["PLSQL", 0.8], ["Prolog", 0.1], ["Common Lisp", 0.1]],
     "updated": "2026-11-21",
 }
 
