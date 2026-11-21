@@ -42,3 +42,25 @@ python scripts/build.py activity --out dist --sample  # activity card with sampl
 The fonts (Caveat, Inter and Courier Prime, under the SIL Open Font License)
 are downloaded from github.com/google/fonts on the first run and kept in
 `.cache/`.
+
+## Adding a project card
+
+Copy one `[[projects]]` block in `profile.toml` and change it:
+
+```toml
+[[projects]]
+file = "my-project"          # names the images: assets/card-my-project-*.svg
+title = "My Project"
+about = "One or two sentences about what it does."
+tags = ["C#", "React"]       # three or four fit on one line
+picture = "schedule"         # schedule, service-map, flashcard or route
+```
+
+Then add the card to `README.md` next to the others, pointing at
+`assets/card-my-project-dark.svg` and `assets/card-my-project-light.svg`.
+
+## Checking a change
+
+`python scripts/check.py` draws every image in memory and tells you if a text
+doesn't fit or a picture is broken, without changing anything in `assets/`.
+Pull requests run the same check on their own.
